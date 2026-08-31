@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import {
+  activatePrompt,
   createPrompt,
+  deletePrompt,
   getPrompts,
+  updatePrompt,
   type PromptResponse,
 } from './api/prompts'
 
@@ -13,6 +16,11 @@ function App() {
   const [editedContent, setEditedContent] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [activatingPromptId, setActivatingPromptId] = useState<number | null>(
+    null,
+  )
   const [error, setError] = useState<string | null>(null)
 
   const selectedPrompt = prompts.find(
@@ -53,30 +61,56 @@ function App() {
     setEditedContent(prompt.content)
   }
 
-  function handleActivate(promptId: number) {
-    setPrompts((currentPrompts) =>
-      currentPrompts.map((prompt) => ({
-        ...prompt,
-        is_active: prompt.id === promptId,
-      })),
-    )
+  async function handleActivate(promptId: number) {
+    try {
+      setActivatingPromptId(promptId)
+      setError(null)
+
+      const activatedPrompt = await activatePrompt(promptId)
+
+      setPrompts((currentPrompts) =>
+        currentPrompts.map((prompt) => ({
+          ...prompt,
+          is_active: prompt.id === activatedPrompt.id,
+        })),
+      )
+    } catch {
+      setError('Failed to activate prompt.')
+    } finally {
+      setActivatingPromptId(null)
+    }
   }
 
-  function handleSave() {
-    setPrompts((currentPrompts) =>
-      currentPrompts.map((prompt) =>
-        prompt.id === selectedPromptId
-          ? {
-              ...prompt,
-              name: editedName,
-              content: editedContent,
-            }
-          : prompt,
-      ),
-    )
+  async function handleSave() {
+    if (!selectedPrompt) {
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      setError(null)
+
+      const updatedPrompt = await updatePrompt(selectedPrompt.id, {
+        name: editedName,
+        content: editedContent,
+      })
+
+      setPrompts((currentPrompts) =>
+        currentPrompts.map((prompt) =>
+          prompt.id === updatedPrompt.id ? updatedPrompt : prompt,
+        ),
+      )
+
+      setEditedName(updatedPrompt.name)
+      setEditedContent(updatedPrompt.content)
+    } catch {
+      setError('Failed to update prompt.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!selectedPrompt || selectedPrompt.is_active) {
       return
     }
@@ -89,22 +123,33 @@ function App() {
       return
     }
 
-    const updatedPrompts = prompts.filter(
-      (prompt) => prompt.id !== selectedPrompt.id,
-    )
+    try {
+      setIsDeleting(true)
+      setError(null)
 
-    setPrompts(updatedPrompts)
+      await deletePrompt(selectedPrompt.id)
 
-    if (updatedPrompts.length > 0) {
-      const nextPrompt = updatedPrompts[0]
+      const updatedPrompts = prompts.filter(
+        (prompt) => prompt.id !== selectedPrompt.id,
+      )
 
-      setSelectedPromptId(nextPrompt.id)
-      setEditedName(nextPrompt.name)
-      setEditedContent(nextPrompt.content)
-    } else {
-      setSelectedPromptId(null)
-      setEditedName('')
-      setEditedContent('')
+      setPrompts(updatedPrompts)
+
+      if (updatedPrompts.length > 0) {
+        const nextPrompt = updatedPrompts[0]
+
+        setSelectedPromptId(nextPrompt.id)
+        setEditedName(nextPrompt.name)
+        setEditedContent(nextPrompt.content)
+      } else {
+        setSelectedPromptId(null)
+        setEditedName('')
+        setEditedContent('')
+      }
+    } catch {
+      setError('Failed to delete prompt.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -201,48 +246,48 @@ function App() {
                   </p>
                 ) : (
                   prompts.map((prompt) => (
-                    <button
+                    <div
                       key={prompt.id}
                       className={
                         prompt.id === selectedPromptId
                           ? 'prompt-row prompt-row-selected'
                           : 'prompt-row'
                       }
-                      onClick={() => handleSelectPrompt(prompt)}
                     >
-                      <div className="prompt-info">
-                        <div className="prompt-name-row">
-                          <span
-                            className={
-                              prompt.is_active
-                                ? 'status-dot status-dot-active'
-                                : 'status-dot'
-                            }
-                          />
+                      <button
+                        className="prompt-select-button"
+                        onClick={() => handleSelectPrompt(prompt)}
+                      >
+                        <div className="prompt-info">
+                          <div className="prompt-name-row">
+                            <span
+                              className={
+                                prompt.is_active
+                                  ? 'status-dot status-dot-active'
+                                  : 'status-dot'
+                              }
+                            />
 
-                          <span className="prompt-name">
-                            {prompt.name}
-                          </span>
-
-                          {prompt.is_active && (
-                            <span className="active-badge">
-                              Active
+                            <span className="prompt-name">
+                              {prompt.name}
                             </span>
-                          )}
+
+                            {prompt.is_active && (
+                              <span className="active-badge">
+                                Active
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </button>
 
                       <div className="prompt-status">
-                        <label
-                          className="switch"
-                          onClick={(event) =>
-                            event.stopPropagation()
-                          }
-                        >
+                        <label className="switch">
                           <input
                             type="radio"
                             name="activePrompt"
                             checked={prompt.is_active}
+                            disabled={activatingPromptId !== null}
                             onChange={() =>
                               handleActivate(prompt.id)
                             }
@@ -259,7 +304,7 @@ function App() {
                             : 'Inactive'}
                         </span>
                       </div>
-                    </button>
+                    </div>
                   ))
                 )}
               </div>
@@ -271,13 +316,15 @@ function App() {
                   <div className="editor-header">
                     <div>
                       <h2>
-                        {isCreating ? 'New prompt' : 'Edit prompt'}
+                        {isCreating
+                          ? 'New prompt'
+                          : 'Prompt details'}
                       </h2>
 
                       <p>
                         {isCreating
                           ? 'Create a new prompt.'
-                          : 'Edit the selected prompt without changing its status.'}
+                          : 'View and edit the selected prompt.'}
                       </p>
                     </div>
                   </div>
@@ -338,17 +385,27 @@ function App() {
                       <>
                         <button
                           className="secondary-button danger-button"
-                          disabled={selectedPrompt?.is_active}
+                          disabled={
+                            selectedPrompt?.is_active ||
+                            isDeleting
+                          }
                           onClick={handleDelete}
                         >
-                          Delete
+                          {isDeleting ? 'Deleting...' : 'Delete'}
                         </button>
 
                         <button
                           className="primary-button"
                           onClick={handleSave}
+                          disabled={
+                            isSaving ||
+                            !editedName.trim() ||
+                            !editedContent.trim()
+                          }
                         >
-                          Save changes
+                          {isSaving
+                            ? 'Saving...'
+                            : 'Save changes'}
                         </button>
                       </>
                     )}
