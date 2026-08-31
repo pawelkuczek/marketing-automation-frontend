@@ -1,87 +1,189 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
-
-type Prompt = {
-  id: number
-  name: string
-  description: string
-  content: string
-  isActive: boolean
-}
-
-const initialPrompts: Prompt[] = [
-  {
-    id: 1,
-    name: 'Social Media Post - Default',
-    description: 'Default prompt for generating social media content.',
-    content: `Jesteś doświadczonym social media copywriterem. Twoim zadaniem
-jest stworzenie angażującego posta na social media na podstawie
-podanych informacji.
-
-Zasady:
-- Używaj prostego i zrozumiałego języka
-- Post powinien być angażujący i zachęcać do interakcji
-- Dostosuj ton do charakteru marki
-- Dodaj odpowiednie emoji
-- Zakończ pytaniem lub wezwaniem do działania
-
-Informacje:
-{{content}}`,
-    isActive: true,
-  },
-  {
-    id: 2,
-    name: 'Product Launch Campaign',
-    description: 'Prompt for product launch announcements and campaigns.',
-    content: `Create a social media post announcing a new product launch.
-
-Keep the message clear, energetic and focused on the main benefit.`,
-    isActive: false,
-  },
-  {
-    id: 3,
-    name: 'Engagement Post - Questions',
-    description: 'Prompt for creating engaging question-based posts.',
-    content: `Create an engaging social media post based around a question.
-
-Encourage users to share their opinions in the comments.`,
-    isActive: false,
-  },
-  {
-    id: 4,
-    name: 'Promotional Post - Limited Time',
-    description: 'Prompt for limited time offers and promotions.',
-    content: `Create a promotional social media post for a limited-time offer.
-
-Make the urgency clear without sounding overly aggressive.`,
-    isActive: false,
-  },
-  {
-    id: 5,
-    name: 'Educational Content',
-    description: 'Prompt for educational and informative posts.',
-    content: `Create an educational social media post.
-
-Explain the topic clearly and keep the content useful and easy to understand.`,
-    isActive: false,
-  },
-]
+import {
+  activatePrompt,
+  createPrompt,
+  deletePrompt,
+  getPrompts,
+  updatePrompt,
+  type PromptResponse,
+} from './api/prompts'
 
 function App() {
-  const [prompts, setPrompts] = useState(initialPrompts)
-  const [selectedPromptId, setSelectedPromptId] = useState(1)
+  const [prompts, setPrompts] = useState<PromptResponse[]>([])
+  const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null)
+  const [editedName, setEditedName] = useState('')
+  const [editedContent, setEditedContent] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [activatingPromptId, setActivatingPromptId] = useState<number | null>(
+    null,
+  )
+  const [error, setError] = useState<string | null>(null)
 
   const selectedPrompt = prompts.find(
     (prompt) => prompt.id === selectedPromptId,
   )
 
-  function handleActivate(promptId: number) {
-    setPrompts((currentPrompts) =>
-      currentPrompts.map((prompt) => ({
-        ...prompt,
-        isActive: prompt.id === promptId,
-      })),
+  useEffect(() => {
+    async function loadPrompts() {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const data = await getPrompts()
+
+        setPrompts(data)
+
+        if (data.length > 0) {
+          const firstPrompt = data[0]
+
+          setSelectedPromptId(firstPrompt.id)
+          setEditedName(firstPrompt.name)
+          setEditedContent(firstPrompt.content)
+        }
+      } catch {
+        setError('Failed to load prompts.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadPrompts()
+  }, [])
+
+  function handleSelectPrompt(prompt: PromptResponse) {
+    setIsCreating(false)
+    setSelectedPromptId(prompt.id)
+    setEditedName(prompt.name)
+    setEditedContent(prompt.content)
+  }
+
+  async function handleActivate(promptId: number) {
+    try {
+      setActivatingPromptId(promptId)
+      setError(null)
+
+      const activatedPrompt = await activatePrompt(promptId)
+
+      setPrompts((currentPrompts) =>
+        currentPrompts.map((prompt) => ({
+          ...prompt,
+          is_active: prompt.id === activatedPrompt.id,
+        })),
+      )
+    } catch {
+      setError('Failed to activate prompt.')
+    } finally {
+      setActivatingPromptId(null)
+    }
+  }
+
+  async function handleSave() {
+    if (!selectedPrompt) {
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      setError(null)
+
+      const updatedPrompt = await updatePrompt(selectedPrompt.id, {
+        name: editedName,
+        content: editedContent,
+      })
+
+      setPrompts((currentPrompts) =>
+        currentPrompts.map((prompt) =>
+          prompt.id === updatedPrompt.id ? updatedPrompt : prompt,
+        ),
+      )
+
+      setEditedName(updatedPrompt.name)
+      setEditedContent(updatedPrompt.content)
+    } catch {
+      setError('Failed to update prompt.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedPrompt || selectedPrompt.is_active) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this prompt?',
     )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setIsDeleting(true)
+      setError(null)
+
+      await deletePrompt(selectedPrompt.id)
+
+      const updatedPrompts = prompts.filter(
+        (prompt) => prompt.id !== selectedPrompt.id,
+      )
+
+      setPrompts(updatedPrompts)
+
+      if (updatedPrompts.length > 0) {
+        const nextPrompt = updatedPrompts[0]
+
+        setSelectedPromptId(nextPrompt.id)
+        setEditedName(nextPrompt.name)
+        setEditedContent(nextPrompt.content)
+      } else {
+        setSelectedPromptId(null)
+        setEditedName('')
+        setEditedContent('')
+      }
+    } catch {
+      setError('Failed to delete prompt.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  function handleNewPrompt() {
+    setIsCreating(true)
+    setSelectedPromptId(null)
+    setEditedName('')
+    setEditedContent('')
+  }
+
+  async function handleCreate() {
+    try {
+      setError(null)
+
+      const newPrompt = await createPrompt({
+        name: editedName,
+        content: editedContent,
+      })
+
+      setPrompts((currentPrompts) => [
+        newPrompt,
+        ...currentPrompts.map((prompt) => ({
+          ...prompt,
+          is_active: false,
+        })),
+      ])
+
+      setSelectedPromptId(newPrompt.id)
+      setEditedName(newPrompt.name)
+      setEditedContent(newPrompt.content)
+      setIsCreating(false)
+    } catch {
+      setError('Failed to create prompt.')
+    }
   }
 
   return (
@@ -97,7 +199,9 @@ function App() {
         </div>
 
         <nav className="navigation">
-          <button className="nav-item">Calendar Processing</button>
+          <button className="nav-item">
+            Calendar Processing
+          </button>
 
           <button className="nav-item nav-item-active">
             Prompt Management
@@ -115,118 +219,204 @@ function App() {
             </p>
           </div>
 
-          <button className="primary-button">+ New prompt</button>
+          <button
+            className="primary-button"
+            onClick={handleNewPrompt}
+          >
+            + New prompt
+          </button>
         </div>
 
-        <div className="prompt-layout">
-          <section className="prompt-list-card">
-            <div className="prompt-list-header">
-              <span>Prompt</span>
-              <span>Status</span>
-            </div>
+        {isLoading ? (
+          <p>Loading prompts...</p>
+        ) : error ? (
+          <p>{error}</p>
+        ) : (
+          <div className="prompt-layout">
+            <section className="prompt-list-card">
+              <div className="prompt-list-header">
+                <span>Prompt</span>
+                <span>Status</span>
+              </div>
 
-            <div className="prompt-list">
-              {prompts.map((prompt) => (
-                <button
-                  key={prompt.id}
-                  className={
-                    prompt.id === selectedPromptId
-                      ? 'prompt-row prompt-row-selected'
-                      : 'prompt-row'
-                  }
-                  onClick={() => setSelectedPromptId(prompt.id)}
-                >
-                  <div className="prompt-info">
-                    <div className="prompt-name-row">
-                      <span
-                        className={
-                          prompt.isActive
-                            ? 'status-dot status-dot-active'
-                            : 'status-dot'
-                        }
-                      />
+              <div className="prompt-list">
+                {prompts.length === 0 ? (
+                  <p className="empty-state">
+                    No prompts yet. Create your first prompt.
+                  </p>
+                ) : (
+                  prompts.map((prompt) => (
+                    <div
+                      key={prompt.id}
+                      className={
+                        prompt.id === selectedPromptId
+                          ? 'prompt-row prompt-row-selected'
+                          : 'prompt-row'
+                      }
+                    >
+                      <button
+                        className="prompt-select-button"
+                        onClick={() => handleSelectPrompt(prompt)}
+                      >
+                        <div className="prompt-info">
+                          <div className="prompt-name-row">
+                            <span
+                              className={
+                                prompt.is_active
+                                  ? 'status-dot status-dot-active'
+                                  : 'status-dot'
+                              }
+                            />
 
-                      <span className="prompt-name">{prompt.name}</span>
+                            <span className="prompt-name">
+                              {prompt.name}
+                            </span>
 
-                      {prompt.isActive && (
-                        <span className="active-badge">Active</span>
-                      )}
+                            {prompt.is_active && (
+                              <span className="active-badge">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+
+                      <div className="prompt-status">
+                        <label className="switch">
+                          <input
+                            type="radio"
+                            name="activePrompt"
+                            checked={prompt.is_active}
+                            disabled={activatingPromptId !== null}
+                            onChange={() =>
+                              handleActivate(prompt.id)
+                            }
+                          />
+
+                          <span className="switch-track">
+                            <span className="switch-thumb" />
+                          </span>
+                        </label>
+
+                        <span>
+                          {prompt.is_active
+                            ? 'Active'
+                            : 'Inactive'}
+                        </span>
+                      </div>
                     </div>
+                  ))
+                )}
+              </div>
+            </section>
 
-                    <p>{prompt.description}</p>
+            <section className="prompt-editor-card">
+              {selectedPrompt || isCreating ? (
+                <>
+                  <div className="editor-header">
+                    <div>
+                      <h2>
+                        {isCreating
+                          ? 'New prompt'
+                          : 'Prompt details'}
+                      </h2>
+
+                      <p>
+                        {isCreating
+                          ? 'Create a new prompt.'
+                          : 'View and edit the selected prompt.'}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="prompt-status">
-                    <label
-                      className="switch"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <input
-                        type="radio"
-                        name="activePrompt"
-                        checked={prompt.isActive}
-                        onChange={() => handleActivate(prompt.id)}
-                      />
+                  <div className="form-group">
+                    <label htmlFor="prompt-name">Name</label>
 
-                      <span className="switch-track">
-                        <span className="switch-thumb" />
-                      </span>
+                    <input
+                      id="prompt-name"
+                      type="text"
+                      value={editedName}
+                      onChange={(event) =>
+                        setEditedName(event.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group form-group-grow">
+                    <label htmlFor="prompt-content">
+                      Prompt content
                     </label>
 
-                    <span>{prompt.isActive ? 'Active' : 'Inactive'}</span>
+                    <textarea
+                      id="prompt-content"
+                      value={editedContent}
+                      onChange={(event) =>
+                        setEditedContent(event.target.value)
+                      }
+                    />
                   </div>
-                </button>
-              ))}
-            </div>
-          </section>
 
-          <section className="prompt-editor-card">
-            {selectedPrompt ? (
-              <>
-                <div className="editor-header">
-                  <div>
-                    <h2>Edit prompt</h2>
-                    <p>Edit the selected prompt without changing its status.</p>
+                  <div className="editor-footer">
+                    {isCreating ? (
+                      <>
+                        <button
+                          className="secondary-button"
+                          onClick={() => {
+                            setIsCreating(false)
+                            setEditedName('')
+                            setEditedContent('')
+                          }}
+                        >
+                          Cancel
+                        </button>
+
+                        <button
+                          className="primary-button"
+                          onClick={handleCreate}
+                          disabled={
+                            !editedName.trim() ||
+                            !editedContent.trim()
+                          }
+                        >
+                          Create prompt
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="secondary-button danger-button"
+                          disabled={
+                            selectedPrompt?.is_active ||
+                            isDeleting
+                          }
+                          onClick={handleDelete}
+                        >
+                          {isDeleting ? 'Deleting...' : 'Delete'}
+                        </button>
+
+                        <button
+                          className="primary-button"
+                          onClick={handleSave}
+                          disabled={
+                            isSaving ||
+                            !editedName.trim() ||
+                            !editedContent.trim()
+                          }
+                        >
+                          {isSaving
+                            ? 'Saving...'
+                            : 'Save changes'}
+                        </button>
+                      </>
+                    )}
                   </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="prompt-name">Name</label>
-
-                  <input
-                    id="prompt-name"
-                    type="text"
-                    value={selectedPrompt.name}
-                    readOnly
-                  />
-                </div>
-
-                <div className="form-group form-group-grow">
-                  <label htmlFor="prompt-content">Prompt content</label>
-
-                  <textarea
-                    id="prompt-content"
-                    value={selectedPrompt.content}
-                    readOnly
-                  />
-                </div>
-
-                <div className="editor-footer">
-                  <button
-                    className="secondary-button danger-button"
-                    disabled={selectedPrompt.isActive}
-                  >
-                    Delete
-                  </button>
-
-                  <button className="primary-button">Save changes</button>
-                </div>
-              </>
-            ) : (
-              <p>No prompt selected.</p>
-            )}
-          </section>
-        </div>
+                </>
+              ) : (
+                <p>No prompt selected.</p>
+              )}
+            </section>
+          </div>
+        )}
       </main>
     </div>
   )
