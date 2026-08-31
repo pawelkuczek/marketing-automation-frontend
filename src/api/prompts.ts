@@ -1,4 +1,7 @@
-import { getApiUrl } from './client'
+import {
+  getApiErrorMessage,
+  getApiUrl,
+} from './client'
 
 export type PromptResponse = {
   id: number
@@ -23,7 +26,12 @@ export async function getPrompts(): Promise<PromptResponse[]> {
   const response = await fetch(getApiUrl('/prompts'))
 
   if (!response.ok) {
-    throw new Error('Failed to fetch prompts')
+    throw new Error(
+      await getApiErrorMessage(
+        response,
+        'Failed to fetch prompts.',
+      ),
+    )
   }
 
   return response.json()
@@ -41,7 +49,12 @@ export async function createPrompt(
   })
 
   if (!response.ok) {
-    throw new Error('Failed to create prompt')
+    throw new Error(
+      await getApiErrorMessage(
+        response,
+        'Failed to create prompt.',
+      ),
+    )
   }
 
   return response.json()
@@ -60,7 +73,12 @@ export async function updatePrompt(
   })
 
   if (!response.ok) {
-    throw new Error('Failed to update prompt')
+    throw new Error(
+      await getApiErrorMessage(
+        response,
+        'Failed to save prompt.',
+      ),
+    )
   }
 
   return response.json()
@@ -77,18 +95,33 @@ export async function activatePrompt(
   )
 
   if (!response.ok) {
-    throw new Error('Failed to activate prompt')
+    throw new Error(
+      await getApiErrorMessage(
+        response,
+        'Failed to activate prompt.',
+      ),
+    )
   }
 
   return response.json()
 }
 
-export async function deletePrompt(promptId: number): Promise<void> {
-  const response = await fetch(getApiUrl(`/prompts/${promptId}`), {
-    method: 'DELETE',
-  })
+export async function deletePrompt(
+  promptId: number,
+): Promise<void> {
+  const response = await fetch(
+    getApiUrl(`/prompts/${promptId}`),
+    {
+      method: 'DELETE',
+    },
+  )
 
   if (!response.ok) {
-    throw new Error('Failed to delete prompt')
+    throw new Error(
+      await getApiErrorMessage(
+        response,
+        'Failed to delete prompt.',
+      ),
+    )
   }
 }

@@ -392,3 +392,152 @@
     grid-template-columns: 1fr;
   }
 }
+
+.action-error {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #f0caca;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #a63f3f;
+  font-size: 13px;
+}
+
+.calendar-card {
+  max-width: 820px;
+  padding: 24px;
+  border: 1px solid #e3e3e9;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 6px 24px rgba(25, 25, 35, 0.04);
+}
+
+.calendar-card-header {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #ececf1;
+}
+
+.calendar-card-header h2 {
+  margin: 0;
+  color: #24242b;
+  font-size: 18px;
+}
+
+.calendar-card-header p {
+  margin: 6px 0 0;
+  color: #7a7a84;
+  font-size: 13px;
+}
+
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  margin-top: 24px;
+  padding: 40px;
+  border: 2px dashed #dcdce4;
+  border-radius: 12px;
+  background: #fafafd;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.upload-area-dragging {
+  border-color: #6657e8;
+  background: #f5f3ff;
+}
+
+.upload-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: #eeecff;
+  color: #5c4fd8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.upload-title {
+  margin: 0;
+  color: #292930;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.upload-description {
+  margin: 7px 0 20px;
+  color: #7a7a84;
+  font-size: 13px;
+}
+
+.file-input {
+  display: none;
+}
+
+.calendar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #ececf1;
+}
+
+.selected-file-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selected-file-info span {
+  color: #7a7a84;
+  font-size: 11px;
+}
+
+.selected-file-info strong {
+  overflow: hidden;
+  color: #303038;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-success {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #bfe5cf;
+  border-radius: 8px;
+  background: #f4fbf7;
+  color: #287a4d;
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .calendar-card {
+    padding: 18px;
+  }
+
+  .upload-area {
+    min-height: 240px;
+    padding: 28px 18px;
+  }
+
+  .calendar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .calendar-actions .primary-button {
+    width: 100%;
+  }
+}
