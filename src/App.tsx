@@ -70,10 +70,20 @@ Explain the topic clearly and keep the content useful and easy to understand.`,
 function App() {
   const [prompts, setPrompts] = useState(initialPrompts)
   const [selectedPromptId, setSelectedPromptId] = useState(1)
+  const [editedName, setEditedName] = useState(initialPrompts[0].name)
+  const [editedContent, setEditedContent] = useState(
+    initialPrompts[0].content,
+  )
 
   const selectedPrompt = prompts.find(
     (prompt) => prompt.id === selectedPromptId,
   )
+
+  function handleSelectPrompt(prompt: Prompt) {
+    setSelectedPromptId(prompt.id)
+    setEditedName(prompt.name)
+    setEditedContent(prompt.content)
+  }
 
   function handleActivate(promptId: number) {
     setPrompts((currentPrompts) =>
@@ -82,6 +92,68 @@ function App() {
         isActive: prompt.id === promptId,
       })),
     )
+  }
+
+  function handleSave() {
+    setPrompts((currentPrompts) =>
+      currentPrompts.map((prompt) =>
+        prompt.id === selectedPromptId
+          ? {
+              ...prompt,
+              name: editedName,
+              content: editedContent,
+            }
+          : prompt,
+      ),
+    )
+  }
+
+  function handleDelete() {
+    if (!selectedPrompt || selectedPrompt.isActive) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this prompt?',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    const updatedPrompts = prompts.filter(
+      (prompt) => prompt.id !== selectedPrompt.id,
+    )
+
+    setPrompts(updatedPrompts)
+
+    if (updatedPrompts.length > 0) {
+      const nextPrompt = updatedPrompts[0]
+
+      setSelectedPromptId(nextPrompt.id)
+      setEditedName(nextPrompt.name)
+      setEditedContent(nextPrompt.content)
+    }
+  }
+
+  function handleNewPrompt() {
+    const newPrompt: Prompt = {
+      id: Date.now(),
+      name: 'New prompt',
+      description: '',
+      content: '',
+      isActive: true,
+    }
+
+    const updatedPrompts = prompts.map((prompt) => ({
+      ...prompt,
+      isActive: false,
+    }))
+
+    setPrompts([newPrompt, ...updatedPrompts])
+    setSelectedPromptId(newPrompt.id)
+    setEditedName(newPrompt.name)
+    setEditedContent(newPrompt.content)
   }
 
   return (
@@ -97,7 +169,9 @@ function App() {
         </div>
 
         <nav className="navigation">
-          <button className="nav-item">Calendar Processing</button>
+          <button className="nav-item">
+            Calendar Processing
+          </button>
 
           <button className="nav-item nav-item-active">
             Prompt Management
@@ -115,7 +189,12 @@ function App() {
             </p>
           </div>
 
-          <button className="primary-button">+ New prompt</button>
+          <button
+            className="primary-button"
+            onClick={handleNewPrompt}
+          >
+            + New prompt
+          </button>
         </div>
 
         <div className="prompt-layout">
@@ -134,7 +213,7 @@ function App() {
                       ? 'prompt-row prompt-row-selected'
                       : 'prompt-row'
                   }
-                  onClick={() => setSelectedPromptId(prompt.id)}
+                  onClick={() => handleSelectPrompt(prompt)}
                 >
                   <div className="prompt-info">
                     <div className="prompt-name-row">
@@ -146,10 +225,14 @@ function App() {
                         }
                       />
 
-                      <span className="prompt-name">{prompt.name}</span>
+                      <span className="prompt-name">
+                        {prompt.name}
+                      </span>
 
                       {prompt.isActive && (
-                        <span className="active-badge">Active</span>
+                        <span className="active-badge">
+                          Active
+                        </span>
                       )}
                     </div>
 
@@ -173,7 +256,9 @@ function App() {
                       </span>
                     </label>
 
-                    <span>{prompt.isActive ? 'Active' : 'Inactive'}</span>
+                    <span>
+                      {prompt.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
                 </button>
               ))}
@@ -186,7 +271,10 @@ function App() {
                 <div className="editor-header">
                   <div>
                     <h2>Edit prompt</h2>
-                    <p>Edit the selected prompt without changing its status.</p>
+                    <p>
+                      Edit the selected prompt without changing its
+                      status.
+                    </p>
                   </div>
                 </div>
 
@@ -196,18 +284,24 @@ function App() {
                   <input
                     id="prompt-name"
                     type="text"
-                    value={selectedPrompt.name}
-                    readOnly
+                    value={editedName}
+                    onChange={(event) =>
+                      setEditedName(event.target.value)
+                    }
                   />
                 </div>
 
                 <div className="form-group form-group-grow">
-                  <label htmlFor="prompt-content">Prompt content</label>
+                  <label htmlFor="prompt-content">
+                    Prompt content
+                  </label>
 
                   <textarea
                     id="prompt-content"
-                    value={selectedPrompt.content}
-                    readOnly
+                    value={editedContent}
+                    onChange={(event) =>
+                      setEditedContent(event.target.value)
+                    }
                   />
                 </div>
 
@@ -215,11 +309,17 @@ function App() {
                   <button
                     className="secondary-button danger-button"
                     disabled={selectedPrompt.isActive}
+                    onClick={handleDelete}
                   >
                     Delete
                   </button>
 
-                  <button className="primary-button">Save changes</button>
+                  <button
+                    className="primary-button"
+                    onClick={handleSave}
+                  >
+                    Save changes
+                  </button>
                 </div>
               </>
             ) : (
