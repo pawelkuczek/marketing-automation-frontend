@@ -1,4 +1,7 @@
-import { getApiUrl } from './client'
+import {
+  getApiErrorMessage,
+  getApiUrl,
+} from './client'
 
 export type ProcessedCalendar = {
   blob: Blob
@@ -21,19 +24,12 @@ export async function processCalendar(
   )
 
   if (!response.ok) {
-    let message = 'Failed to process calendar.'
-
-    try {
-      const errorData = await response.json()
-
-      if (errorData.detail) {
-        message = errorData.detail
-      }
-    } catch {
-      // Keep the default error message.
-    }
-
-    throw new Error(message)
+    throw new Error(
+      await getApiErrorMessage(
+        response,
+        'Failed to process calendar.',
+      ),
+    )
   }
 
   const blob = await response.blob()
